@@ -33,6 +33,8 @@ let phones = [
 ];
 
 let currentPhoneId = null;
+let isSending = false;
+let sendTimeout = null;
 
 // DOM 元素
 const phoneList = document.getElementById('phoneList');
@@ -101,8 +103,14 @@ function renderChat() {
 // 发送消息
 function sendMessage() {
   const message = messageInput.value.trim();
-  
+
   if (!message || !currentPhoneId) return;
+
+  // 如果正在发送中，则中止
+  if (isSending) {
+    cancelSend();
+    return;
+  }
 
   const phone = phones.find(p => p.id === currentPhoneId);
   if (!phone) return;
@@ -120,11 +128,37 @@ function sendMessage() {
   messageInput.style.height = '50px';
   renderChat();
 
+  // 设置发送状态
+  isSending = true;
+  sendBtn.textContent = '中止';
+  sendBtn.classList.add('sending');
+
   // 发送到主进程
   ipcRenderer.send('send-message', {
     phoneId: currentPhoneId,
     message: message
   });
+
+  // 10秒后自动恢复
+  sendTimeout = setTimeout(() => {
+    resetSendButton();
+  }, 10000);
+}
+
+// 中止发送
+function cancelSend() {
+  if (sendTimeout) {
+    clearTimeout(sendTimeout);
+    sendTimeout = null;
+  }
+  resetSendButton();
+}
+
+// 重置发送按钮
+function resetSendButton() {
+  isSending = false;
+  sendBtn.textContent = '发送';
+  sendBtn.classList.remove('sending');
 }
 
 // 接收 AI 响应
@@ -139,6 +173,9 @@ ipcRenderer.on('receive-message', (event, { phoneId, message }) => {
   };
   phone.messages.push(aiMessage);
 
+  // 收到响应后重置按钮
+  resetSendButton();
+
   if (currentPhoneId === phoneId) {
     renderChat();
   }
@@ -152,8 +189,8 @@ function getCurrentTime() {
 
 // 输入框自动调整高度
 messageInput.addEventListener('input', function() {
-  this.style.height = '50px';
-  this.style.height = Math.min(this.scrollHeight, 150) + 'px';
+  const newHeight = Math.max(this.scrollHeight, 50);
+  this.style.height = newHeight + 'px';
 });
 
 // 监听键盘事件
