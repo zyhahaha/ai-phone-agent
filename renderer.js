@@ -150,25 +150,6 @@ function getCurrentTime() {
   return now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
 }
 
-// 新增手机
-function addPhone() {
-  const newId = Math.max(...phones.map(p => p.id)) + 1;
-  const phoneNames = ['iPhone', 'Samsung', 'Pixel', 'Xiaomi', 'Huawei', 'OPPO', 'Vivo'];
-  const randomName = phoneNames[Math.floor(Math.random() * phoneNames.length)];
-  const randomNumber = Math.floor(Math.random() * 9000) + 1000;
-
-  const newPhone = {
-    id: newId,
-    name: `${randomName} ${Math.floor(Math.random() * 10) + 15}`,
-    number: `+86 138-0000-${randomNumber}`,
-    status: 'online',
-    messages: []
-  };
-
-  phones.push(newPhone);
-  renderPhoneList();
-}
-
 // 输入框自动调整高度
 messageInput.addEventListener('input', function() {
   this.style.height = '50px';
