@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Phone Agent</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- 左侧手机列表 -->
+    <aside class="sidebar">
+      <!-- <div class="sidebar-header">
+        <h2>手机列表</h2>
+        <button class="add-phone-btn" id="addPhoneBtn">+ 新增</button>
+      </div> -->
+      <div class="phone-list" id="phoneList">
+        <!-- 手机列表项将通过 JavaScript 动态生成 -->
+      </div>
+    </aside>
+
+    <!-- 右侧对话窗口 -->
+    <main class="chat-area">
+      <div class="chat-messages" id="chatMessages">
+        <div class="welcome-message">
+          <p>欢迎使用 AI Phone Agent</p>
+          <p>从左侧选择一个手机开始 AI 对话</p>
+        </div>
+      </div>
+
+      <div class="chat-input-area">
+        <div class="input-wrapper">
+          <textarea 
+            id="messageInput" 
+            placeholder="输入消息..." 
+            rows="1"
+          ></textarea>
+          <button class="send-btn" id="sendBtn">
+            发送
+          </button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
