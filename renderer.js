@@ -91,13 +91,12 @@ function renderChat() {
 function sendMessage() {
   const message = messageInput.value.trim();
 
-  if (!message || !currentPhoneId) return;
-
   // 如果正在发送中，则中止
   if (isSending) {
     cancelSend();
     return;
   }
+  if (!message || !currentPhoneId) return;
 
   const phone = phones.find(p => p.id === currentPhoneId);
   if (!phone) return;
