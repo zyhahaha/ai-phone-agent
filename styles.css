@@ -259,12 +259,13 @@ body {
 }
 
 .message.system .message-content {
-  background: #fef3c7;
-  border: 1px solid #fcd34d;
-  color: #92400e;
+  background: transparent;
+  border: none;
+  color: #64748b;
   font-size: 13px;
-  padding: 8px 16px;
+  padding: 4px 8px;
   text-align: center;
+  font-style: italic;
 }
 
 .message.system .message-time {
