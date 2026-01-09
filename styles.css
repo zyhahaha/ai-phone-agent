@@ -111,11 +111,32 @@ body {
   font-size: 12px;
 }
 
+.phone-version {
+  color: #94a3b8;
+  font-size: 11px;
+  margin-top: 2px;
+}
+
 .phone-status {
   width: 10px;
   height: 10px;
   border-radius: 50%;
   background: #4ade80;
+}
+
+.no-devices {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #64748b;
+  text-align: center;
+}
+
+.no-devices p {
+  margin: 8px 0;
+  font-size: 14px;
 }
 
 .phone-status.offline {

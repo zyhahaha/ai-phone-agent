@@ -1,36 +1,7 @@
 const { ipcRenderer } = require('electron');
 
-// 示例手机数据
-let phones = [
-  {
-    id: 1,
-    name: 'iPhone 15 Pro',
-    number: '+86 138-0000-0001',
-    status: 'online',
-    messages: []
-  },
-  {
-    id: 2,
-    name: 'Samsung Galaxy S24',
-    number: '+86 138-0000-0002',
-    status: 'online',
-    messages: []
-  },
-  {
-    id: 3,
-    name: 'Pixel 8 Pro',
-    number: '+86 138-0000-0003',
-    status: 'offline',
-    messages: []
-  },
-  {
-    id: 4,
-    name: 'Xiaomi 14',
-    number: '+86 138-0000-0004',
-    status: 'online',
-    messages: []
-  }
-];
+// 手机数据（从 ADB 获取）
+let phones = [];
 
 let currentPhoneId = null;
 let isSending = false;
@@ -44,12 +15,23 @@ const sendBtn = document.getElementById('sendBtn');
 
 // 渲染手机列表
 function renderPhoneList() {
+  if (phones.length === 0) {
+    phoneList.innerHTML = `
+      <div class="no-devices">
+        <p>未检测到设备</p>
+        <p>请确保已连接设备并开启 USB 调试</p>
+      </div>
+    `;
+    return;
+  }
+
   phoneList.innerHTML = phones.map(phone => `
     <div class="phone-item ${currentPhoneId === phone.id ? 'active' : ''}"
-         onclick="selectPhone(${phone.id})">
+         onclick="selectPhone('${phone.id}')">
       <div class="phone-info">
         <div class="phone-name">${phone.name}</div>
         <div class="phone-number">${phone.number}</div>
+        ${phone.androidVersion ? `<div class="phone-version">Android ${phone.androidVersion}</div>` : ''}
       </div>
       <div class="phone-status ${phone.status}"></div>
     </div>
@@ -59,6 +41,10 @@ function renderPhoneList() {
 // 选择手机
 function selectPhone(phoneId) {
   currentPhoneId = phoneId;
+
+  // 尝试连接设备
+  // ipcRenderer.send('connect-device', phoneId);
+
   renderPhoneList();
   renderChat();
 }
@@ -187,6 +173,26 @@ function getCurrentTime() {
   return now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
 }
 
+// 从 ADB 获取设备列表
+function fetchDevices() {
+  ipcRenderer.send('get-devices');
+}
+
+// 监听 ADB 设备列表
+ipcRenderer.on('devices-list', (event, devices) => {
+  phones = devices;
+  renderPhoneList();
+});
+
+// 监听设备连接结果
+ipcRenderer.on('device-connected', (event, { success, deviceId, error }) => {
+  if (success) {
+    console.log(`设备 ${deviceId} 连接成功`);
+  } else {
+    console.error(`设备连接失败:`, error);
+  }
+});
+
 // 输入框自动调整高度
 messageInput.addEventListener('input', function() {
   const newHeight = Math.max(this.scrollHeight, 50);
@@ -203,6 +209,12 @@ messageInput.addEventListener('keydown', function(e) {
 
 // 按钮事件
 sendBtn.addEventListener('click', sendMessage);
+
+// 初始化 - 获取 ADB 设备列表
+fetchDevices();
+
+// 定时刷新设备列表（每30秒）
+setInterval(fetchDevices, 30000);
 
 // 初始化
 renderPhoneList();
