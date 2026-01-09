@@ -66,8 +66,8 @@ ipcMain.on('connect-device', async (event, deviceId) => {
       agentProcesses.delete(deviceId);
     }
 
-    // 获取 API key
-    const apiKey = await getApiKey();
+    // 从渲染进程获取 API key（从 localStorage）
+    const apiKey = await getApiKeyFromRenderer();
 
     // 启动 phone-agent 进程（交互模式）
     const exePath = path.join(__dirname, 'libs', 'phone-agent.exe');
@@ -113,6 +113,27 @@ ipcMain.on('connect-device', async (event, deviceId) => {
     event.reply('device-connected', { success: false, error: error.message });
   }
 });
+
+// 从渲染进程获取 API Key
+async function getApiKeyFromRenderer() {
+  return new Promise((resolve) => {
+    // 一次性监听
+    const handler = (event, { apiKey }) => {
+      ipcMain.removeListener('api-key-response', handler);
+      resolve(apiKey || '');
+    };
+    ipcMain.on('api-key-response', handler);
+
+    // 请求渲染进程发送 API Key
+    mainWindow.webContents.send('get-api-key-request');
+
+    // 超时处理
+    setTimeout(() => {
+      ipcMain.removeListener('api-key-response', handler);
+      resolve('');
+    }, 1000);
+  });
+}
 
 // 发送消息到 phone-agent
 ipcMain.on('send-message', async (event, { phoneId, message }) => {
@@ -212,36 +233,4 @@ async function getAdbProperty(deviceId, property) {
   }
 }
 
-// 获取 API Key
-function getApiKey() {
-  try {
-    const configPath = path.join(app.getPath('userData'), 'config.json');
-    if (fs.existsSync(configPath)) {
-      const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-      return config.apiKey || '';
-    }
-  } catch (error) {
-    console.error('读取 API Key 失败:', error);
-  }
-  return '';
-}
 
-// 保存 API Key
-ipcMain.on('save-api-key', (event, apiKey) => {
-  try {
-    const configPath = path.join(app.getPath('userData'), 'config.json');
-    const config = { apiKey };
-    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
-    console.log('API Key 已保存');
-    event.reply('api-key-saved', { success: true });
-  } catch (error) {
-    console.error('保存 API Key 失败:', error);
-    event.reply('api-key-saved', { success: false, error: error.message });
-  }
-});
-
-// 获取 API Key
-ipcMain.on('get-api-key', (event) => {
-  const apiKey = getApiKey();
-  event.reply('api-key', { apiKey });
-});

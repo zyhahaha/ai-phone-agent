@@ -2,6 +2,7 @@ const { ipcRenderer } = require('electron');
 
 // 手机数据（从 ADB 获取）
 let phones = [];
+let phoneMessages = new Map(); // 存储每个设备的历史消息
 
 let currentPhoneId = null;
 let isSending = false;
@@ -48,6 +49,11 @@ function renderPhoneList() {
 function selectPhone(phoneId) {
   currentPhoneId = phoneId;
 
+  // 初始化消息历史（如果不存在）
+  if (!phoneMessages.has(phoneId)) {
+    phoneMessages.set(phoneId, []);
+  }
+
   // 连接设备并启动 phone-agent
   ipcRenderer.send('connect-device', phoneId);
 
@@ -58,9 +64,7 @@ function selectPhone(phoneId) {
 
 // 渲染聊天记录
 function renderChat() {
-  const phone = phones.find(p => p.id === currentPhoneId);
-  
-  if (!phone) {
+  if (!currentPhoneId) {
     chatMessages.innerHTML = `
       <div class="welcome-message">
         <p>欢迎使用 AI Phone Agent</p>
@@ -70,17 +74,20 @@ function renderChat() {
     return;
   }
 
-  if (phone.messages.length === 0) {
+  const phone = phones.find(p => p.id === currentPhoneId);
+  const messages = phoneMessages.get(currentPhoneId) || [];
+
+  if (!messages || messages.length === 0) {
     chatMessages.innerHTML = `
       <div class="welcome-message">
-        <p>与 ${phone.name} 的对话</p>
+        <p>与 ${phone?.name || '设备'} 的对话</p>
         <p>开始发送消息与 AI 进行对话</p>
       </div>
     `;
     return;
   }
 
-  chatMessages.innerHTML = phone.messages.map(msg => `
+  chatMessages.innerHTML = messages.map(msg => `
     <div class="message ${msg.type}">
       <div class="message-content">
         ${msg.content}
@@ -104,8 +111,11 @@ function sendMessage() {
   }
   if (!message || !currentPhoneId) return;
 
-  const phone = phones.find(p => p.id === currentPhoneId);
-  if (!phone) return;
+  // 获取或创建消息列表
+  if (!phoneMessages.has(currentPhoneId)) {
+    phoneMessages.set(currentPhoneId, []);
+  }
+  const messages = phoneMessages.get(currentPhoneId);
 
   // 添加用户消息
   const userMessage = {
@@ -113,7 +123,7 @@ function sendMessage() {
     content: message,
     time: getCurrentTime()
   };
-  phone.messages.push(userMessage);
+  messages.push(userMessage);
 
   // 清空输入框
   messageInput.value = '';
@@ -170,19 +180,22 @@ function cancelSend() {
 
 // 显示中止提示
 function showCancelMessage() {
-  const phone = phones.find(p => p.id === currentPhoneId);
-  if (!phone) return;
+  if (!currentPhoneId) return;
+
+  // 获取或创建消息列表
+  if (!phoneMessages.has(currentPhoneId)) {
+    phoneMessages.set(currentPhoneId, []);
+  }
+  const messages = phoneMessages.get(currentPhoneId);
 
   const cancelMessage = {
     type: 'system',
     content: '当前操作已中止',
     time: getCurrentTime()
   };
-  phone.messages.push(cancelMessage);
+  messages.push(cancelMessage);
 
-  if (currentPhoneId === phone.id) {
-    renderChat();
-  }
+  renderChat();
 }
 
 // 重置发送按钮
@@ -194,15 +207,18 @@ function resetSendButton() {
 
 // 接收 AI 响应
 ipcRenderer.on('receive-message', (event, { phoneId, message }) => {
-  const phone = phones.find(p => p.id === phoneId);
-  if (!phone) return;
+  // 获取或创建消息列表
+  if (!phoneMessages.has(phoneId)) {
+    phoneMessages.set(phoneId, []);
+  }
+  const messages = phoneMessages.get(phoneId);
 
   const aiMessage = {
     type: 'ai',
     content: message,
     time: getCurrentTime()
   };
-  phone.messages.push(aiMessage);
+  messages.push(aiMessage);
 
   // 收到响应后重置按钮
   resetSendButton();
@@ -240,10 +256,19 @@ ipcRenderer.on('device-connected', (event, { success, deviceId, error }) => {
   }
 });
 
+// 监听主进程请求 API Key
+ipcRenderer.on('get-api-key-request', () => {
+  const apiKey = localStorage.getItem('ai-api-key') || '';
+  ipcRenderer.send('api-key-response', { apiKey });
+});
+
 // 监听 agent 输出
 ipcRenderer.on('agent-output', (event, { deviceId, output }) => {
-  const phone = phones.find(p => p.id === deviceId);
-  if (!phone) return;
+  // 获取或创建消息列表
+  if (!phoneMessages.has(deviceId)) {
+    phoneMessages.set(deviceId, []);
+  }
+  const messages = phoneMessages.get(deviceId);
 
   // 过滤掉空行和提示符
   const trimmed = output.trim();
@@ -255,7 +280,7 @@ ipcRenderer.on('agent-output', (event, { deviceId, output }) => {
     content: trimmed,
     time: getCurrentTime()
   };
-  phone.messages.push(aiMessage);
+  messages.push(aiMessage);
 
   if (currentPhoneId === deviceId) {
     renderChat();
@@ -278,15 +303,18 @@ ipcRenderer.on('agent-closed', (event, { deviceId, code }) => {
 
 // 添加系统消息
 function addSystemMessage(deviceId, content) {
-  const phone = phones.find(p => p.id === deviceId);
-  if (!phone) return;
+  // 获取或创建消息列表
+  if (!phoneMessages.has(deviceId)) {
+    phoneMessages.set(deviceId, []);
+  }
+  const messages = phoneMessages.get(deviceId);
 
   const message = {
     type: 'system',
     content: content,
     time: getCurrentTime()
   };
-  phone.messages.push(message);
+  messages.push(message);
 
   if (currentPhoneId === deviceId) {
     renderChat();
@@ -316,7 +344,9 @@ saveModalBtn.addEventListener('click', saveSettings);
 
 // 打开设置
 function openSettings() {
-  ipcRenderer.send('get-api-key');
+  // 从 localStorage 获取 API Key
+  const savedApiKey = localStorage.getItem('ai-api-key') || '';
+  apiKeyInput.value = savedApiKey;
   settingsModal.style.display = 'flex';
 }
 
@@ -330,24 +360,12 @@ function closeSettings() {
 function saveSettings() {
   const apiKey = apiKeyInput.value.trim();
   if (apiKey) {
-    ipcRenderer.send('save-api-key', apiKey);
+    // 保存到 localStorage
+    localStorage.setItem('ai-api-key', apiKey);
+    console.log('API Key 已保存');
   }
   closeSettings();
 }
-
-// 监听获取的 API Key
-ipcRenderer.on('api-key', (event, { apiKey }) => {
-  apiKeyInput.value = apiKey || '';
-});
-
-// 监听 API Key 保存结果
-ipcRenderer.on('api-key-saved', (event, { success, error }) => {
-  if (success) {
-    console.log('API Key 已保存');
-  } else {
-    console.error('保存 API Key 失败:', error);
-  }
-});
 
 // 初始化 - 获取 ADB 设备列表
 fetchDevices();
