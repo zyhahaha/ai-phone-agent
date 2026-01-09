@@ -157,29 +157,24 @@ body {
 }
 
 .sidebar-footer {
-  padding: 20px;
+  padding: 10px;
   border-top: 1px solid #e2e8f0;
   display: flex;
   justify-content: center;
-  background: #f0f4f8;
+  /* background: #f0f4f8; */
 }
 
 .settings-btn {
-  background: #ffffff;
+  background: none;
   color: #64748b;
-  border: 2px solid #cbd5e1;
+  border: none;
   padding: 8px 16px;
-  border-radius: 20px;
   cursor: pointer;
   font-size: 14px;
-  font-weight: 600;
-  transition: all 0.3s ease;
 }
 
 .settings-btn:hover {
-  background: #e2e8f0;
-  color: #334155;
-  border-color: #94a3b8;
+  color: #1e293b;
 }
 
 .phone-list {
