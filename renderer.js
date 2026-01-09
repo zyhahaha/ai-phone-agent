@@ -153,6 +153,26 @@ function cancelSend() {
     sendTimeout = null;
   }
   resetSendButton();
+
+  // 显示中止提示
+  showCancelMessage();
+}
+
+// 显示中止提示
+function showCancelMessage() {
+  const phone = phones.find(p => p.id === currentPhoneId);
+  if (!phone) return;
+
+  const cancelMessage = {
+    type: 'system',
+    content: '当前操作已中止',
+    time: getCurrentTime()
+  };
+  phone.messages.push(cancelMessage);
+
+  if (currentPhoneId === phone.id) {
+    renderChat();
+  }
 }
 
 // 重置发送按钮
