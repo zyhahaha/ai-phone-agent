@@ -128,7 +128,7 @@ function sendMessage() {
   // 10秒后自动恢复
   sendTimeout = setTimeout(() => {
     resetSendButton();
-  }, 10000);
+  }, 5000);
 }
 
 // 中止发送

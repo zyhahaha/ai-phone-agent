@@ -54,7 +54,7 @@ ipcMain.on('send-message', (event, { phoneId, message }) => {
       phoneId,
       message: `AI 响应: ${message}`
     });
-  }, 1000);
+  }, 5000);
 });
 
 // 获取 ADB 设备列表
