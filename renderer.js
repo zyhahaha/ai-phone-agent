@@ -47,6 +47,7 @@ function selectPhone(phoneId) {
 
   renderPhoneList();
   renderChat();
+  updateInputState();
 }
 
 // 渲染聊天记录
@@ -125,10 +126,24 @@ function sendMessage() {
     message: message
   });
 
-  // 10秒后自动恢复
+  // 5秒后自动恢复
   sendTimeout = setTimeout(() => {
     resetSendButton();
   }, 5000);
+}
+
+// 更新输入框和发送按钮状态
+function updateInputState() {
+  const hasSelectedPhone = currentPhoneId !== null;
+
+  messageInput.disabled = !hasSelectedPhone;
+  sendBtn.disabled = !hasSelectedPhone;
+
+  if (!hasSelectedPhone) {
+    messageInput.placeholder = '请先选择一个手机';
+  } else {
+    messageInput.placeholder = '输入消息...';
+  }
 }
 
 // 中止发送
@@ -215,6 +230,9 @@ fetchDevices();
 
 // 定时刷新设备列表（每30秒）
 setInterval(fetchDevices, 30000);
+
+// 初始化输入框状态
+updateInputState();
 
 // 初始化
 renderPhoneList();

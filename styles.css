@@ -301,6 +301,12 @@ body {
   box-shadow: 0 4px 12px rgba(148, 163, 184, 0.2);
 }
 
+#messageInput:disabled {
+  background: #f1f5f9;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 .send-btn {
   background: #e0e7ff;
   color: #475569;
@@ -317,6 +323,19 @@ body {
 .send-btn:hover {
   background: #c7d2fe;
   border-color: #94a3b8;
+}
+
+.send-btn:disabled {
+  background: #f1f5f9;
+  color: #94a3b8;
+  border-color: #cbd5e1;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.send-btn:disabled:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
 }
 
 .send-btn.sending {
