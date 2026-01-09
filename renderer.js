@@ -153,6 +153,11 @@ function cancelSend() {
   }
   resetSendButton();
 
+  // 通知主进程取消请求
+  ipcRenderer.send('cancel-message', {
+    phoneId: currentPhoneId
+  });
+
   // 显示中止提示
   showCancelMessage();
 }

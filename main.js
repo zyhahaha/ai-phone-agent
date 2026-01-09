@@ -5,6 +5,7 @@ const util = require('util');
 const execAsync = util.promisify(exec);
 
 let mainWindow;
+const pendingRequests = new Map(); // 存储待处理的请求
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -48,13 +49,43 @@ app.on('window-all-closed', () => {
 
 // IPC 通信处理
 ipcMain.on('send-message', (event, { phoneId, message }) => {
+  const requestId = `${phoneId}-${Date.now()}`;
+
+  // 存储请求
+  pendingRequests.set(requestId, {
+    event,
+    phoneId,
+    message,
+    cancelled: false
+  });
+
   // 模拟 AI 响应
   setTimeout(() => {
+    const request = pendingRequests.get(requestId);
+
+    // 检查请求是否被取消
+    if (!request || request.cancelled) {
+      pendingRequests.delete(requestId);
+      return;
+    }
+
     event.reply('receive-message', {
       phoneId,
       message: `AI 响应: ${message}`
     });
+    pendingRequests.delete(requestId);
   }, 5000);
+});
+
+// 取消发送请求
+ipcMain.on('cancel-message', (event, { phoneId }) => {
+  // 取消该手机的所有待处理请求
+  for (const [requestId, request] of pendingRequests.entries()) {
+    if (request.phoneId === phoneId) {
+      request.cancelled = true;
+      pendingRequests.delete(requestId);
+    }
+  }
 });
 
 // 获取 ADB 设备列表
