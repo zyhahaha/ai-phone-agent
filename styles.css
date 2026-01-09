@@ -28,7 +28,7 @@
 }
 
 .modal-header {
-  padding: 20px;
+  padding: 10px;
   border-bottom: 1px solid #e2e8f0;
   display: flex;
   justify-content: space-between;
@@ -60,7 +60,7 @@
 }
 
 .modal-body {
-  padding: 20px;
+  padding: 30px 10px;
 }
 
 .modal-body label {
@@ -88,7 +88,7 @@
 }
 
 .modal-footer {
-  padding: 16px 20px;
+  padding: 10px 20px;
   border-top: 1px solid #e2e8f0;
   display: flex;
   justify-content: flex-end;
@@ -156,19 +156,12 @@ body {
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
 }
 
-.sidebar-header {
+.sidebar-footer {
   padding: 20px;
-  border-bottom: 1px solid #e2e8f0;
+  border-top: 1px solid #e2e8f0;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  justify-content: center;
   background: #f0f4f8;
-}
-
-.sidebar-header h2 {
-  color: #475569;
-  font-size: 18px;
-  font-weight: 600;
 }
 
 .settings-btn {
