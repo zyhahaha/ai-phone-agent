@@ -10,10 +10,10 @@
   <div class="app-container">
     <!-- 左侧手机列表 -->
     <aside class="sidebar">
-      <!-- <div class="sidebar-header">
+      <div class="sidebar-header">
         <h2>手机列表</h2>
-        <button class="add-phone-btn" id="addPhoneBtn">+ 新增</button>
-      </div> -->
+        <button class="settings-btn" id="settingsBtn">设置</button>
+      </div>
       <div class="phone-list" id="phoneList">
         <!-- 手机列表项将通过 JavaScript 动态生成 -->
       </div>
@@ -30,9 +30,9 @@
 
       <div class="chat-input-area">
         <div class="input-wrapper">
-          <textarea 
-            id="messageInput" 
-            placeholder="输入消息..." 
+          <textarea
+            id="messageInput"
+            placeholder="输入消息..."
             rows="1"
           ></textarea>
           <button class="send-btn" id="sendBtn">
@@ -41,6 +41,28 @@
         </div>
       </div>
     </main>
+  </div>
+
+  <!-- 设置弹窗 -->
+  <div class="modal-overlay" id="settingsModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>设置</h3>
+        <button class="modal-close" id="closeModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <label for="apiKeyInput">API Key</label>
+        <input
+          type="password"
+          id="apiKeyInput"
+          placeholder="请输入 API Key"
+        />
+      </div>
+      <div class="modal-footer">
+        <button class="modal-cancel" id="cancelModal">取消</button>
+        <button class="modal-confirm" id="saveModal">保存</button>
+      </div>
+    </div>
   </div>
 
   <script src="renderer.js"></script>

@@ -12,6 +12,12 @@ const phoneList = document.getElementById('phoneList');
 const chatMessages = document.getElementById('chatMessages');
 const messageInput = document.getElementById('messageInput');
 const sendBtn = document.getElementById('sendBtn');
+const settingsBtn = document.getElementById('settingsBtn');
+const settingsModal = document.getElementById('settingsModal');
+const closeModalBtn = document.getElementById('closeModal');
+const cancelModalBtn = document.getElementById('cancelModal');
+const saveModalBtn = document.getElementById('saveModal');
+const apiKeyInput = document.getElementById('apiKeyInput');
 
 // 渲染手机列表
 function renderPhoneList() {
@@ -248,6 +254,33 @@ messageInput.addEventListener('keydown', function(e) {
 
 // 按钮事件
 sendBtn.addEventListener('click', sendMessage);
+settingsBtn.addEventListener('click', openSettings);
+closeModalBtn.addEventListener('click', closeSettings);
+cancelModalBtn.addEventListener('click', closeSettings);
+saveModalBtn.addEventListener('click', saveSettings);
+
+// 打开设置
+function openSettings() {
+  const savedApiKey = localStorage.getItem('ai-api-key') || '';
+  apiKeyInput.value = savedApiKey;
+  settingsModal.style.display = 'flex';
+}
+
+// 关闭设置
+function closeSettings() {
+  settingsModal.style.display = 'none';
+  apiKeyInput.value = '';
+}
+
+// 保存设置
+function saveSettings() {
+  const apiKey = apiKeyInput.value.trim();
+  if (apiKey) {
+    localStorage.setItem('ai-api-key', apiKey);
+    console.log('API Key 已保存');
+  }
+  closeSettings();
+}
 
 // 初始化 - 获取 ADB 设备列表
 fetchDevices();
