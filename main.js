@@ -1,11 +1,14 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
-const { exec } = require('child_process');
+const { spawn, exec } = require('child_process');
+const path = require('path');
+const fs = require('fs');
 const util = require('util');
 
 const execAsync = util.promisify(exec);
 
 let mainWindow;
-const pendingRequests = new Map(); // 存储待处理的请求
+const pendingRequests = new Map();
+const agentProcesses = new Map(); // 存储每个设备的 phone-agent 进程
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -27,6 +30,11 @@ function createWindow() {
   mainWindow.webContents.openDevTools();
 
   mainWindow.on('closed', () => {
+    // 关闭所有 phone-agent 进程
+    for (const [deviceId, proc] of agentProcesses.entries()) {
+      proc.kill();
+    }
+    agentProcesses.clear();
     mainWindow = null;
   });
 }
@@ -48,43 +56,93 @@ app.on('window-all-closed', () => {
 });
 
 // IPC 通信处理
-ipcMain.on('send-message', (event, { phoneId, message }) => {
-  const requestId = `${phoneId}-${Date.now()}`;
 
-  // 存储请求
-  pendingRequests.set(requestId, {
-    event,
-    phoneId,
-    message,
-    cancelled: false
-  });
-
-  // 模拟 AI 响应
-  setTimeout(() => {
-    const request = pendingRequests.get(requestId);
-
-    // 检查请求是否被取消
-    if (!request || request.cancelled) {
-      pendingRequests.delete(requestId);
-      return;
+// 连接设备并启动 phone-agent
+ipcMain.on('connect-device', async (event, deviceId) => {
+  try {
+    // 如果该设备已有运行的进程，先关闭
+    if (agentProcesses.has(deviceId)) {
+      agentProcesses.get(deviceId).kill();
+      agentProcesses.delete(deviceId);
     }
 
-    event.reply('receive-message', {
-      phoneId,
-      message: `AI 响应: ${message}`
+    // 获取 API key
+    const apiKey = await getApiKey();
+
+    // 启动 phone-agent 进程（交互模式）
+    const exePath = path.join(__dirname, 'libs', 'phone-agent.exe');
+    const args = [
+      '--base-url', 'https://open.bigmodel.cn/api/paas/v4',
+      '--model', 'autoglm-phone',
+      '--device-id', deviceId,
+      '--apikey', apiKey,
+      '--lang', 'cn'
+    ];
+
+    console.log('启动 phone-agent:', exePath, args.join(' '));
+
+    const agentProc = spawn(exePath, args);
+    agentProcesses.set(deviceId, agentProc);
+
+    // 监听 agent 输出
+    agentProc.stdout.on('data', (data) => {
+      const output = data.toString();
+      console.log(`[${deviceId}] stdout:`, output);
+      
+      // 发送输出到渲染进程
+      event.reply('agent-output', { deviceId, output });
     });
-    pendingRequests.delete(requestId);
-  }, 5000);
+
+    agentProc.stderr.on('data', (data) => {
+      const output = data.toString();
+      console.error(`[${deviceId}] stderr:`, output);
+      
+      // 发送输出到渲染进程
+      event.reply('agent-output', { deviceId, output });
+    });
+
+    agentProc.on('close', (code) => {
+      console.log(`[${deviceId}] 进程退出，代码:`, code);
+      agentProcesses.delete(deviceId);
+      event.reply('agent-closed', { deviceId, code });
+    });
+
+    event.reply('device-connected', { success: true, deviceId });
+  } catch (error) {
+    console.error(`连接设备失败:`, error);
+    event.reply('device-connected', { success: false, error: error.message });
+  }
 });
 
-// 取消发送请求
+// 发送消息到 phone-agent
+ipcMain.on('send-message', async (event, { phoneId, message }) => {
+  const agentProc = agentProcesses.get(phoneId);
+  if (!agentProc) {
+    event.reply('agent-error', { phoneId, error: '设备未连接' });
+    return;
+  }
+
+  try {
+    // 发送消息到 phone-agent 标准输入
+    agentProc.stdin.write(message + '\n');
+    console.log(`发送消息到 ${phoneId}:`, message);
+  } catch (error) {
+    console.error(`发送消息失败:`, error);
+    event.reply('agent-error', { phoneId, error: error.message });
+  }
+});
+
+// 取消发送请求（通过发送 Ctrl+C 到 phone-agent）
 ipcMain.on('cancel-message', (event, { phoneId }) => {
-  // 取消该手机的所有待处理请求
-  for (const [requestId, request] of pendingRequests.entries()) {
-    if (request.phoneId === phoneId) {
-      request.cancelled = true;
-      pendingRequests.delete(requestId);
-    }
+  const agentProc = agentProcesses.get(phoneId);
+  if (!agentProc) return;
+
+  try {
+    // 发送 Ctrl+C 中断
+    agentProc.stdin.write('\x03');
+    console.log(`已发送中断信号到 ${phoneId}`);
+  } catch (error) {
+    console.error(`发送中断信号失败:`, error);
   }
 });
 
@@ -154,13 +212,36 @@ async function getAdbProperty(deviceId, property) {
   }
 }
 
-// 连接设备
-ipcMain.on('connect-device', async (event, deviceId) => {
+// 获取 API Key
+function getApiKey() {
   try {
-    // 执行 adb connect 命令
-    const { stdout } = await execAsync(`adb connect ${deviceId}`);
-    event.reply('device-connected', { success: true, deviceId, output: stdout });
+    const configPath = path.join(app.getPath('userData'), 'config.json');
+    if (fs.existsSync(configPath)) {
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      return config.apiKey || '';
+    }
   } catch (error) {
-    event.reply('device-connected', { success: false, error: error.message });
+    console.error('读取 API Key 失败:', error);
   }
+  return '';
+}
+
+// 保存 API Key
+ipcMain.on('save-api-key', (event, apiKey) => {
+  try {
+    const configPath = path.join(app.getPath('userData'), 'config.json');
+    const config = { apiKey };
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+    console.log('API Key 已保存');
+    event.reply('api-key-saved', { success: true });
+  } catch (error) {
+    console.error('保存 API Key 失败:', error);
+    event.reply('api-key-saved', { success: false, error: error.message });
+  }
+});
+
+// 获取 API Key
+ipcMain.on('get-api-key', (event) => {
+  const apiKey = getApiKey();
+  event.reply('api-key', { apiKey });
 });

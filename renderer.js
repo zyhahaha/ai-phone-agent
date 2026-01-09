@@ -48,8 +48,8 @@ function renderPhoneList() {
 function selectPhone(phoneId) {
   currentPhoneId = phoneId;
 
-  // 尝试连接设备
-  // ipcRenderer.send('connect-device', phoneId);
+  // 连接设备并启动 phone-agent
+  ipcRenderer.send('connect-device', phoneId);
 
   renderPhoneList();
   renderChat();
@@ -233,10 +233,65 @@ ipcRenderer.on('devices-list', (event, devices) => {
 ipcRenderer.on('device-connected', (event, { success, deviceId, error }) => {
   if (success) {
     console.log(`设备 ${deviceId} 连接成功`);
+    addSystemMessage(deviceId, '设备已连接');
   } else {
     console.error(`设备连接失败:`, error);
+    addSystemMessage(deviceId, `连接失败: ${error}`);
   }
 });
+
+// 监听 agent 输出
+ipcRenderer.on('agent-output', (event, { deviceId, output }) => {
+  const phone = phones.find(p => p.id === deviceId);
+  if (!phone) return;
+
+  // 过滤掉空行和提示符
+  const trimmed = output.trim();
+  if (!trimmed || trimmed.startsWith('>')) return;
+
+  // 添加 AI 消息
+  const aiMessage = {
+    type: 'ai',
+    content: trimmed,
+    time: getCurrentTime()
+  };
+  phone.messages.push(aiMessage);
+
+  if (currentPhoneId === deviceId) {
+    renderChat();
+    // 收到 AI 响应后重置按钮
+    resetSendButton();
+  }
+});
+
+// 监听 agent 错误
+ipcRenderer.on('agent-error', (event, { phoneId, error }) => {
+  console.error(`Agent 错误:`, error);
+  addSystemMessage(phoneId, `错误: ${error}`);
+});
+
+// 监听 agent 关闭
+ipcRenderer.on('agent-closed', (event, { deviceId, code }) => {
+  console.log(`设备 ${deviceId} agent 已关闭，退出代码:`, code);
+  addSystemMessage(deviceId, '设备已断开');
+});
+
+// 添加系统消息
+function addSystemMessage(deviceId, content) {
+  const phone = phones.find(p => p.id === deviceId);
+  if (!phone) return;
+
+  const message = {
+    type: 'system',
+    content: content,
+    time: getCurrentTime()
+  };
+  phone.messages.push(message);
+
+  if (currentPhoneId === deviceId) {
+    renderChat();
+  }
+}
 
 // 输入框自动调整高度
 messageInput.addEventListener('input', function() {
@@ -261,8 +316,7 @@ saveModalBtn.addEventListener('click', saveSettings);
 
 // 打开设置
 function openSettings() {
-  const savedApiKey = localStorage.getItem('ai-api-key') || '';
-  apiKeyInput.value = savedApiKey;
+  ipcRenderer.send('get-api-key');
   settingsModal.style.display = 'flex';
 }
 
@@ -276,11 +330,24 @@ function closeSettings() {
 function saveSettings() {
   const apiKey = apiKeyInput.value.trim();
   if (apiKey) {
-    localStorage.setItem('ai-api-key', apiKey);
-    console.log('API Key 已保存');
+    ipcRenderer.send('save-api-key', apiKey);
   }
   closeSettings();
 }
+
+// 监听获取的 API Key
+ipcRenderer.on('api-key', (event, { apiKey }) => {
+  apiKeyInput.value = apiKey || '';
+});
+
+// 监听 API Key 保存结果
+ipcRenderer.on('api-key-saved', (event, { success, error }) => {
+  if (success) {
+    console.log('API Key 已保存');
+  } else {
+    console.error('保存 API Key 失败:', error);
+  }
+});
 
 // 初始化 - 获取 ADB 设备列表
 fetchDevices();
